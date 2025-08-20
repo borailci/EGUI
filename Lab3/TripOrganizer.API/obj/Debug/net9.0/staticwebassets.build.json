@@ -1,0 +1,12 @@
+{
+  "Version": 1,
+  "Hash": "2fZZG2bV5g4B5Kh5lF4pn7wgtF+joovx6etO0zmEsYc=",
+  "Source": "TripOrganizer.API",
+  "BasePath": "_content/TripOrganizer.API",
+  "Mode": "Default",
+  "ManifestType": "Build",
+  "ReferencedProjectsConfiguration": [],
+  "DiscoveryPatterns": [],
+  "Assets": [],
+  "Endpoints": []
+}
