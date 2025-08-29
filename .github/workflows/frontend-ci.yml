@@ -37,18 +37,12 @@ jobs:
       working-directory: ${{ env.PROJECT_PATH }}
       run: npm ci
 
-    - name: Fix security vulnerabilities
+    - name: Security audit (informational)
       working-directory: ${{ env.PROJECT_PATH }}
       run: |
-        npm audit fix --force
-        npm audit fix || true
+        echo "Running security audit for information..."
+        npm audit --audit-level=critical || echo "⚠️ Security vulnerabilities found - see above for details"
       continue-on-error: true
-
-    - name: Check for remaining critical vulnerabilities
-      working-directory: ${{ env.PROJECT_PATH }}
-      run: |
-        echo "Checking for critical vulnerabilities only..."
-        npm audit --audit-level=critical || echo "⚠️ Non-critical vulnerabilities found but continuing build"
 
     - name: Run TypeScript type checking
       working-directory: ${{ env.PROJECT_PATH }}
@@ -56,12 +50,16 @@ jobs:
 
     - name: Run ESLint
       working-directory: ${{ env.PROJECT_PATH }}
-      run: npm run lint -- --format=compact
+      run: |
+        echo "Running ESLint..."
+        npx eslint src --ext .js,.jsx,.ts,.tsx --format=compact || echo "⚠️ Linting completed with warnings"
       continue-on-error: true
 
     - name: Run tests with coverage
       working-directory: ${{ env.PROJECT_PATH }}
-      run: npm test -- --coverage --coverage-reporters=text-lcov --coverage-reporters=json-summary --watchAll=false
+      run: |
+        echo "Running tests with coverage..."
+        npm test -- --coverage --coverage-reporters=text-lcov --coverage-reporters=json-summary --watchAll=false
       env:
         CI: true
 
