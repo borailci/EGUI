@@ -1,0 +1,70 @@
+# .dockerignore for TripOrganizer.API
+
+# Git
+.git
+.gitignore
+.gitattributes
+
+# Documentation
+README.md
+*.md
+
+# Build outputs
+bin/
+obj/
+out/
+
+# Visual Studio / VS Code
+.vs/
+.vscode/
+*.user
+*.suo
+*.sln.docstates
+
+# Temporary files
+*.tmp
+*.temp
+*~
+
+# Logs
+*.log
+logs/
+
+# Database files
+*.db
+*.sqlite
+
+# Environment files (should be handled via Docker secrets)
+.env
+.env.local
+.env.production
+
+# Node modules (if any)
+node_modules/
+
+# Test results
+TestResults/
+*.trx
+*.coverage
+*.coveragexml
+
+# Certificates (should be mounted as volumes)
+*.pfx
+*.p12
+*.crt
+*.key
+*.pem
+
+# IDE specific
+.idea/
+*.swp
+*.swo
+
+# OS specific
+.DS_Store
+Thumbs.db
+
+# Docker files themselves (no need to copy)
+Dockerfile*
+docker-compose*
+.dockerignore

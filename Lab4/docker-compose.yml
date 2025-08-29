@@ -1,0 +1,104 @@
+version: '3.8'
+
+services:
+  # PostgreSQL Database
+  database:
+    image: postgres:15-alpine
+    container_name: triporganizer_db
+    environment:
+      - POSTGRES_DB=triporganizer_lab4
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./init-scripts:/docker-entrypoint-initdb.d
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d triporganizer_lab4"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+    networks:
+      - triporganizer_network
+
+  # ASP.NET Core API
+  api:
+    build:
+      context: ./TripOrganizer.API
+      dockerfile: Dockerfile
+    container_name: triporganizer_api
+    ports:
+      - "8080:8080"
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+      - ASPNETCORE_URLS=http://+:8080
+      - ConnectionStrings__DefaultConnection=Server=database;Port=5432;Database=triporganizer_lab4;Username=postgres;Password=postgres;
+      - Jwt__Key=this-is-a-super-secret-key-that-is-at-least-256-bits-long-for-hs256-algorithm-in-trip-organizer-app-2025
+      - Jwt__Issuer=trip-organizer-api
+      - Jwt__Audience=trip-organizer-client
+      - Jwt__ExpiryInMinutes=60
+      - Cors__AllowedOrigins__0=http://localhost:3000
+      - Cors__AllowedOrigins__1=http://localhost:8081
+      - HealthCheck__Enabled=true
+      - HealthCheck__Path=/health
+    depends_on:
+      database:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    restart: unless-stopped
+    networks:
+      - triporganizer_network
+
+  # React Frontend (for development)
+  frontend:
+    build:
+      context: ./trip-organizer-web
+      dockerfile: Dockerfile.dev
+      target: development
+    container_name: triporganizer_frontend
+    ports:
+      - "3000:3000"
+    environment:
+      - REACT_APP_API_URL=http://localhost:8080
+      - CHOKIDAR_USEPOLLING=true
+    volumes:
+      - ./trip-organizer-web/src:/app/src
+      - ./trip-organizer-web/public:/app/public
+      - /app/node_modules
+    depends_on:
+      - api
+    restart: unless-stopped
+    networks:
+      - triporganizer_network
+
+  # Nginx (for production-like setup)
+  nginx:
+    image: nginx:alpine
+    container_name: triporganizer_nginx
+    ports:
+      - "8081:80"
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./trip-organizer-web/build:/usr/share/nginx/html:ro
+    depends_on:
+      - api
+    restart: unless-stopped
+    networks:
+      - triporganizer_network
+    profiles:
+      - production
+
+volumes:
+  postgres_data:
+    driver: local
+
+networks:
+  triporganizer_network:
+    driver: bridge

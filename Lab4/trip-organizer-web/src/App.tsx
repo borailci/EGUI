@@ -13,12 +13,15 @@ import { ProtectedRoute } from './components/ProtectedRoute';
 import { Navbar } from './components/Navbar';
 import './styles/global.css';
 
+// Get basename from environment or use default for GitHub Pages
+const basename = process.env.NODE_ENV === 'production' ? '/EGUI' : '';
+
 function App() {
     return (
         <ThemeProvider theme={theme}>
             <CssBaseline />
             <AuthProvider>
-                <Router>
+                <Router basename={basename}>
                     <Box sx={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
                         <Navbar />
                         <Box component="main" sx={{ flexGrow: 1 }}>

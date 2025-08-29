@@ -1,0 +1,96 @@
+name: Full CI Pipeline
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  backend-ci:
+    name: Backend CI
+    runs-on: ubuntu-latest
+    
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: triporganizer_test
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: '8.0.x'
+
+    - name: Restore dependencies
+      run: dotnet restore Lab4/TripOrganizer.API
+
+    - name: Build
+      run: dotnet build Lab4/TripOrganizer.API --no-restore --configuration Release
+
+    - name: Test
+      run: dotnet test Lab4/TripOrganizer.API --no-build --configuration Release
+      env:
+        ConnectionStrings__DefaultConnection: "Server=localhost;Port=5432;Database=triporganizer_test;Username=postgres;Password=postgres;"
+
+  frontend-ci:
+    name: Frontend CI  
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18.x'
+        cache: 'npm'
+        cache-dependency-path: Lab4/trip-organizer-web/package-lock.json
+
+    - name: Install dependencies
+      working-directory: Lab4/trip-organizer-web
+      run: npm ci
+
+    - name: Run tests
+      working-directory: Lab4/trip-organizer-web
+      run: npm test -- --coverage --watchAll=false
+      env:
+        CI: true
+
+    - name: Build
+      working-directory: Lab4/trip-organizer-web
+      run: npm run build
+
+  integration-summary:
+    name: Integration Summary
+    runs-on: ubuntu-latest
+    needs: [backend-ci, frontend-ci]
+    if: always()
+    
+    steps:
+    - name: Generate summary
+      run: |
+        echo "## Full CI Pipeline Results" >> $GITHUB_STEP_SUMMARY
+        echo "- **Backend CI**: ${{ needs.backend-ci.result }}" >> $GITHUB_STEP_SUMMARY  
+        echo "- **Frontend CI**: ${{ needs.frontend-ci.result }}" >> $GITHUB_STEP_SUMMARY
+        
+        if [[ "${{ needs.backend-ci.result }}" == "success" && "${{ needs.frontend-ci.result }}" == "success" ]]; then
+          echo "- **Overall Status**: ✅ All checks passed" >> $GITHUB_STEP_SUMMARY
+        else
+          echo "- **Overall Status**: ❌ Some checks failed" >> $GITHUB_STEP_SUMMARY
+          exit 1
+        fi

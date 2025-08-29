@@ -1,0 +1,149 @@
+name: Frontend CI
+
+on:
+  push:
+    branches: [ main, develop ]
+    paths:
+      - 'Lab4/trip-organizer-web/**'
+      - '.github/workflows/frontend-ci.yml'
+  pull_request:
+    branches: [ main ]
+    paths:
+      - 'Lab4/trip-organizer-web/**'
+      - '.github/workflows/frontend-ci.yml'
+  workflow_call:
+
+env:
+  NODE_VERSION: '18.x'
+  PROJECT_PATH: 'Lab4/trip-organizer-web'
+
+jobs:
+  lint-and-test:
+    name: Lint and Test
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ env.NODE_VERSION }}
+        cache: 'npm'
+        cache-dependency-path: ${{ env.PROJECT_PATH }}/package-lock.json
+
+    - name: Install dependencies
+      working-directory: ${{ env.PROJECT_PATH }}
+      run: npm ci
+
+    - name: Check for security vulnerabilities
+      working-directory: ${{ env.PROJECT_PATH }}
+      run: npm audit --audit-level=high
+
+    - name: Run TypeScript type checking
+      working-directory: ${{ env.PROJECT_PATH }}
+      run: npx tsc --noEmit
+
+    - name: Run ESLint
+      working-directory: ${{ env.PROJECT_PATH }}
+      run: npm run lint -- --format=compact
+      continue-on-error: true
+
+    - name: Run tests with coverage
+      working-directory: ${{ env.PROJECT_PATH }}
+      run: npm test -- --coverage --coverage-reporters=text-lcov --coverage-reporters=json-summary --watchAll=false
+      env:
+        CI: true
+
+    - name: Upload test coverage
+      uses: actions/upload-artifact@v4
+      with:
+        name: frontend-coverage
+        path: ${{ env.PROJECT_PATH }}/coverage
+        retention-days: 30
+
+    - name: Comment coverage on PR
+      if: github.event_name == 'pull_request'
+      uses: romeovs/lcov-reporter-action@v0.3.1
+      with:
+        github-token: ${{ secrets.GITHUB_TOKEN }}
+        lcov-file: ${{ env.PROJECT_PATH }}/coverage/lcov.info
+
+  build:
+    name: Build Application
+    runs-on: ubuntu-latest
+    needs: lint-and-test
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ env.NODE_VERSION }}
+        cache: 'npm'
+        cache-dependency-path: ${{ env.PROJECT_PATH }}/package-lock.json
+
+    - name: Install dependencies
+      working-directory: ${{ env.PROJECT_PATH }}
+      run: npm ci
+
+    - name: Build for development
+      working-directory: ${{ env.PROJECT_PATH }}
+      run: npm run build
+      env:
+        REACT_APP_API_URL: http://localhost:8080
+        GENERATE_SOURCEMAP: true
+
+    - name: Build for production
+      working-directory: ${{ env.PROJECT_PATH }}
+      run: npm run build
+      env:
+        REACT_APP_API_URL: https://triporganizer-api.onrender.com
+        GENERATE_SOURCEMAP: false
+        PUBLIC_URL: /EGUI
+
+    - name: Check build output
+      working-directory: ${{ env.PROJECT_PATH }}
+      run: |
+        if [ -d "build" ]; then
+          echo "✅ Build successful! Build directory exists."
+          echo "Build size: $(du -sh build | cut -f1)"
+          echo "Build contents:"
+          ls -la build/
+          
+          # Check for critical files
+          [ -f "build/index.html" ] && echo "✅ index.html found" || echo "❌ index.html missing"
+          [ -d "build/static" ] && echo "✅ static folder found" || echo "❌ static folder missing"
+        else
+          echo "❌ Build failed! Build directory not found."
+          exit 1
+        fi
+
+    - name: Upload build artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: frontend-build
+        path: ${{ env.PROJECT_PATH }}/build
+        retention-days: 7
+
+    - name: Generate build summary
+      if: always()
+      run: |
+        echo "## Frontend CI Build Summary" >> $GITHUB_STEP_SUMMARY
+        echo "- **Project**: trip-organizer-web" >> $GITHUB_STEP_SUMMARY
+        echo "- **Node Version**: ${{ env.NODE_VERSION }}" >> $GITHUB_STEP_SUMMARY
+        echo "- **Framework**: React with TypeScript" >> $GITHUB_STEP_SUMMARY
+        echo "- **Build Status**: ${{ job.status }}" >> $GITHUB_STEP_SUMMARY
+        
+        if [ -d "${{ env.PROJECT_PATH }}/build" ]; then
+          BUILD_SIZE=$(du -sh ${{ env.PROJECT_PATH }}/build | cut -f1)
+          echo "- **Build Size**: $BUILD_SIZE" >> $GITHUB_STEP_SUMMARY
+        fi
+        
+        if [ -f "${{ env.PROJECT_PATH }}/coverage/coverage-summary.json" ]; then
+          COVERAGE=$(node -e "console.log(JSON.parse(require('fs').readFileSync('${{ env.PROJECT_PATH }}/coverage/coverage-summary.json')).total.lines.pct + '%')")
+          echo "- **Test Coverage**: $COVERAGE" >> $GITHUB_STEP_SUMMARY
+        fi

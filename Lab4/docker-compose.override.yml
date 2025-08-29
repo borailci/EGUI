@@ -1,0 +1,43 @@
+# docker-compose.override.yml
+# This file is automatically used by docker-compose for development overrides
+
+version: '3.8'
+
+services:
+  # Development overrides for API
+  api:
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+      - Logging__LogLevel__Default=Debug
+      - Logging__LogLevel__Microsoft.AspNetCore=Information
+    volumes:
+      # Enable hot reload for development (if using dotnet watch)
+      - ./TripOrganizer.API:/src
+    # Override build for development
+    build:
+      context: ./TripOrganizer.API
+      dockerfile: Dockerfile
+      target: runtime
+
+  # Development overrides for frontend
+  frontend:
+    environment:
+      - REACT_APP_API_URL=http://localhost:8080
+      - FAST_REFRESH=true
+    # Mount source code for hot reload
+    volumes:
+      - ./trip-organizer-web/src:/app/src:cached
+      - ./trip-organizer-web/public:/app/public:cached
+      - /app/node_modules
+
+  # Development database settings
+  database:
+    environment:
+      - POSTGRES_DB=triporganizer_dev
+    # Expose database port for external tools
+    ports:
+      - "5432:5432"
+    # Add volume for development database scripts
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./database/dev-init:/docker-entrypoint-initdb.d

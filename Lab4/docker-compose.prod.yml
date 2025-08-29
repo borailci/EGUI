@@ -1,0 +1,101 @@
+# docker-compose.prod.yml
+# Production configuration for Trip Organizer
+
+version: '3.8'
+
+services:
+  # PostgreSQL Database - Production
+  database:
+    image: postgres:15-alpine
+    container_name: triporganizer_db_prod
+    environment:
+      - POSTGRES_DB=triporganizer_prod
+      - POSTGRES_USER=${DB_USER:-postgres}
+      - POSTGRES_PASSWORD=${DB_PASSWORD:-postgres}
+    ports:
+      - "${DB_PORT:-5432}:5432"
+    volumes:
+      - postgres_prod_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-postgres} -d triporganizer_prod"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+    networks:
+      - triporganizer_network
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+        reservations:
+          memory: 256M
+
+  # ASP.NET Core API - Production
+  api:
+    build:
+      context: ./TripOrganizer.API
+      dockerfile: Dockerfile
+    container_name: triporganizer_api_prod
+    ports:
+      - "${API_PORT:-8080}:8080"
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Production
+      - ASPNETCORE_URLS=http://+:8080
+      - ConnectionStrings__DefaultConnection=Server=database;Port=5432;Database=triporganizer_prod;Username=${DB_USER:-postgres};Password=${DB_PASSWORD:-postgres};
+      - Jwt__Key=${JWT_SECRET_KEY}
+      - Jwt__Issuer=${JWT_ISSUER:-trip-organizer-api}
+      - Jwt__Audience=${JWT_AUDIENCE:-trip-organizer-client}
+      - Jwt__ExpiryInMinutes=${JWT_EXPIRY:-60}
+      - Cors__AllowedOrigins__0=${FRONTEND_URL:-http://localhost:8081}
+      - HealthCheck__Enabled=true
+      - HealthCheck__Path=/health
+      - Logging__LogLevel__Default=Warning
+      - Logging__LogLevel__Microsoft.AspNetCore=Warning
+    depends_on:
+      database:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    restart: unless-stopped
+    networks:
+      - triporganizer_network
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+        reservations:
+          memory: 256M
+
+  # Nginx - Production Frontend Server
+  frontend:
+    build:
+      context: ./trip-organizer-web
+      dockerfile: Dockerfile.dev
+      target: production
+    container_name: triporganizer_frontend_prod
+    ports:
+      - "${FRONTEND_PORT:-8081}:80"
+    depends_on:
+      - api
+    restart: unless-stopped
+    networks:
+      - triporganizer_network
+    deploy:
+      resources:
+        limits:
+          memory: 128M
+        reservations:
+          memory: 64M
+
+volumes:
+  postgres_prod_data:
+    driver: local
+
+networks:
+  triporganizer_network:
+    driver: bridge
