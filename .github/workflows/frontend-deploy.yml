@@ -43,6 +43,13 @@ jobs:
       working-directory: ${{ env.PROJECT_PATH }}
       run: npm ci
 
+    - name: Fix security vulnerabilities
+      working-directory: ${{ env.PROJECT_PATH }}
+      run: |
+        npm audit fix --force
+        npm audit fix || true
+      continue-on-error: true
+
     - name: Create production environment file
       working-directory: ${{ env.PROJECT_PATH }}
       run: |
