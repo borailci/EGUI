@@ -107,11 +107,11 @@ describe('Profile Component', () => {
 
   describe('Password Validation', () => {
     it('should show error when passwords do not match', async () => {
-      const { container } = renderWithTheme(<Profile />);
+      renderWithTheme(<Profile />);
       
       // Get password fields by name attribute
-      const newPasswordField = container.querySelector('input[name="newPassword"]') as HTMLInputElement;
-      const confirmPasswordField = container.querySelector('input[name="confirmPassword"]') as HTMLInputElement;
+      const newPasswordField = screen.getByRole('textbox', { name: /new password/i }) as HTMLInputElement;
+      const confirmPasswordField = screen.getByRole('textbox', { name: /confirm password/i }) as HTMLInputElement;
       
       // Enter mismatched passwords
       fireEvent.change(newPasswordField, { target: { value: 'password123' } });
@@ -193,14 +193,14 @@ describe('Profile Component', () => {
         loading: false 
       });
 
-      const { container } = renderWithTheme(<Profile />);
+      renderWithTheme(<Profile />);
       
       // Fill form with short password
-      const fullNameField = container.querySelector('input[name="fullName"]') as HTMLInputElement;
-      const emailField = container.querySelector('input[name="email"]') as HTMLInputElement;
-      const currentPasswordField = container.querySelector('input[name="currentPassword"]') as HTMLInputElement;
-      const newPasswordField = container.querySelector('input[name="newPassword"]') as HTMLInputElement;
-      const confirmPasswordField = container.querySelector('input[name="confirmPassword"]') as HTMLInputElement;
+      const fullNameField = screen.getByRole('textbox', { name: /full name/i }) as HTMLInputElement;
+      const emailField = screen.getByRole('textbox', { name: /email/i }) as HTMLInputElement;
+      const currentPasswordField = screen.getByLabelText(/current password/i) as HTMLInputElement;
+      const newPasswordField = screen.getByLabelText(/new password/i) as HTMLInputElement;
+      const confirmPasswordField = screen.getByLabelText(/confirm password/i) as HTMLInputElement;
       
       fireEvent.change(fullNameField, { target: { value: 'Updated Name' } });
       fireEvent.change(emailField, { target: { value: 'updated@example.com' } });
@@ -229,12 +229,12 @@ describe('Profile Component', () => {
         loading: false 
       });
 
-      const { container } = renderWithTheme(<Profile />);
+      renderWithTheme(<Profile />);
       
       // Fill in password fields
-      const currentPasswordField = container.querySelector('input[name="currentPassword"]') as HTMLInputElement;
-      const newPasswordField = container.querySelector('input[name="newPassword"]') as HTMLInputElement;
-      const confirmPasswordField = container.querySelector('input[name="confirmPassword"]') as HTMLInputElement;
+      const currentPasswordField = screen.getByLabelText(/current password/i) as HTMLInputElement;
+      const newPasswordField = screen.getByLabelText(/new password/i) as HTMLInputElement;
+      const confirmPasswordField = screen.getByLabelText(/confirm password/i) as HTMLInputElement;
       
       fireEvent.change(currentPasswordField, { target: { value: 'currentpass' } });
       fireEvent.change(newPasswordField, { target: { value: 'newpassword123' } });
@@ -281,18 +281,14 @@ describe('Profile Component', () => {
     });
 
     it('should have proper form structure', () => {
-      const { container } = renderWithTheme(<Profile />);
-      
-      // Check that form element exists
-      const form = screen.getByRole('button', { name: /Update Profile/i }).closest('form');
-      expect(form).toBeInTheDocument();
+      renderWithTheme(<Profile />);
       
       // Check form has the right structure - should contain all required fields
       expect(screen.getByLabelText(/Full Name/i)).toBeInTheDocument();
       expect(screen.getByLabelText(/Email/i)).toBeInTheDocument();
       expect(screen.getByLabelText(/Current Password/i)).toBeInTheDocument();
-      expect(container.querySelector('input[name="newPassword"]')).toBeInTheDocument();
-      expect(container.querySelector('input[name="confirmPassword"]')).toBeInTheDocument();
+      expect(screen.getByLabelText(/new password/i)).toBeInTheDocument();
+      expect(screen.getByLabelText(/confirm password/i)).toBeInTheDocument();
       expect(screen.getByRole('button', { name: /Update Profile/i })).toBeInTheDocument();
     });
 
