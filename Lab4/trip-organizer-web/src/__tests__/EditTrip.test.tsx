@@ -7,6 +7,8 @@ import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
 import { EditTrip } from '../pages/EditTrip';
 import { theme } from '../theme';
 import { Trip, User } from '../types/api';
+import { tripService } from '../services/api';
+import { useAuth } from '../contexts/AuthContext';
 
 // Mock react-router-dom
 const mockNavigate = jest.fn();
@@ -27,21 +29,9 @@ jest.mock('../services/api', () => ({
 }));
 
 // Mock the auth context
-// Mock the trip service
-jest.mock('../services/api', () => ({
-  tripService: {
-    getFutureTrips: jest.fn(),
-    updateTrip: jest.fn(),
-  },
-}));
-
-// Mock the auth context
 jest.mock('../contexts/AuthContext', () => ({
   useAuth: jest.fn(),
 }));
-
-import { tripService } from '../services/api';
-import { useAuth } from '../contexts/AuthContext';
 
 const mockTripService = tripService as jest.Mocked<typeof tripService>;
 const mockUseAuth = useAuth as jest.MockedFunction<typeof useAuth>;
@@ -104,11 +94,12 @@ describe('EditTrip Component', () => {
 
       await waitFor(() => {
         expect(screen.getByDisplayValue('Test Trip')).toBeInTheDocument();
-        expect(screen.getByDisplayValue('Paris')).toBeInTheDocument();
-        expect(screen.getByDisplayValue('Amazing trip to Paris')).toBeInTheDocument();
-        expect(screen.getByDisplayValue('10')).toBeInTheDocument();
-        expect(screen.getByDisplayValue('500')).toBeInTheDocument();
       });
+      
+      expect(screen.getByDisplayValue('Paris')).toBeInTheDocument();
+      expect(screen.getByDisplayValue('Amazing trip to Paris')).toBeInTheDocument();
+      expect(screen.getByDisplayValue('10')).toBeInTheDocument();
+      expect(screen.getByDisplayValue('500')).toBeInTheDocument();
 
       expect(mockTripService.getFutureTrips).toHaveBeenCalledTimes(1);
     });
@@ -177,16 +168,18 @@ describe('EditTrip Component', () => {
   });
 
   describe('Form Interaction', () => {
-    beforeEach(async () => {
+    const setupFormTest = async () => {
       mockTripService.getFutureTrips.mockResolvedValue([mockTrip]);
       renderWithProviders();
       
       await waitFor(() => {
         expect(screen.getByDisplayValue('Test Trip')).toBeInTheDocument();
       });
-    });
+    };
 
-    it('should update trip name field', () => {
+    it('should update trip name field', async () => {
+      await setupFormTest();
+      
       const nameField = screen.getByDisplayValue('Test Trip');
       
       fireEvent.change(nameField, { target: { value: 'Updated Trip Name' } });
@@ -194,7 +187,9 @@ describe('EditTrip Component', () => {
       expect(screen.getByDisplayValue('Updated Trip Name')).toBeInTheDocument();
     });
 
-    it('should update destination field', () => {
+    it('should update destination field', async () => {
+      await setupFormTest();
+      
       const destinationField = screen.getByDisplayValue('Paris');
       
       fireEvent.change(destinationField, { target: { value: 'London' } });
@@ -202,7 +197,9 @@ describe('EditTrip Component', () => {
       expect(screen.getByDisplayValue('London')).toBeInTheDocument();
     });
 
-    it('should update description field', () => {
+    it('should update description field', async () => {
+      await setupFormTest();
+      
       const descriptionField = screen.getByDisplayValue('Amazing trip to Paris');
       
       fireEvent.change(descriptionField, { target: { value: 'Updated description' } });
@@ -210,7 +207,9 @@ describe('EditTrip Component', () => {
       expect(screen.getByDisplayValue('Updated description')).toBeInTheDocument();
     });
 
-    it('should update capacity field', () => {
+    it('should update capacity field', async () => {
+      await setupFormTest();
+      
       const capacityField = screen.getByDisplayValue('10');
       
       fireEvent.change(capacityField, { target: { value: '15' } });
@@ -218,7 +217,9 @@ describe('EditTrip Component', () => {
       expect(screen.getByDisplayValue('15')).toBeInTheDocument();
     });
 
-    it('should update price field', () => {
+    it('should update price field', async () => {
+      await setupFormTest();
+      
       const priceField = screen.getByDisplayValue('500');
       
       fireEvent.change(priceField, { target: { value: '600' } });
@@ -283,16 +284,18 @@ describe('EditTrip Component', () => {
   });
 
   describe('Form Submission', () => {
-    beforeEach(async () => {
+    const setupSubmissionTest = async () => {
       mockTripService.getFutureTrips.mockResolvedValue([mockTrip]);
       renderWithProviders();
       
       await waitFor(() => {
         expect(screen.getByDisplayValue('Test Trip')).toBeInTheDocument();
       });
-    });
+    };
 
     it('should submit form successfully and navigate', async () => {
+      await setupSubmissionTest();
+      
       mockTripService.updateTrip.mockResolvedValue({
         ...mockTrip,
         name: 'Updated Trip'
@@ -320,6 +323,8 @@ describe('EditTrip Component', () => {
     });
 
     it('should handle submission error', async () => {
+      await setupSubmissionTest();
+      
       mockTripService.updateTrip.mockRejectedValue(new Error('Update failed'));
 
       const saveButton = screen.getByText('Save Changes');
@@ -333,6 +338,8 @@ describe('EditTrip Component', () => {
     });
 
     it('should show loading state during submission', async () => {
+      await setupSubmissionTest();
+      
       // Mock a delayed response
       mockTripService.updateTrip.mockImplementation(
         () => new Promise(resolve => setTimeout(resolve, 100))
@@ -351,16 +358,17 @@ describe('EditTrip Component', () => {
   });
 
   describe('Navigation', () => {
-    beforeEach(async () => {
+    const setupNavigationTest = async () => {
       mockTripService.getFutureTrips.mockResolvedValue([mockTrip]);
       renderWithProviders();
       
       await waitFor(() => {
         expect(screen.getByDisplayValue('Test Trip')).toBeInTheDocument();
       });
-    });
+    };
 
-    it('should navigate back when cancel button is clicked', () => {
+    it('should navigate back when cancel button is clicked', async () => {
+      await setupNavigationTest();
       const cancelButton = screen.getByText('Cancel');
       
       fireEvent.click(cancelButton);
@@ -368,7 +376,9 @@ describe('EditTrip Component', () => {
       expect(mockNavigate).toHaveBeenCalledWith('/trips');
     });
 
-    it('should have correct form structure', () => {
+    it('should have correct form structure', async () => {
+      await setupNavigationTest();
+      
       expect(screen.getByText('Edit Trip')).toBeInTheDocument();
       expect(screen.getByDisplayValue('Test Trip')).toBeInTheDocument(); // Trip Name field
       expect(screen.getByDisplayValue('Paris')).toBeInTheDocument(); // Destination field

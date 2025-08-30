@@ -1,4 +1,8 @@
-// Mock axios completely before any imports
+import axios from 'axios';
+import { AuthResponse, Trip, User } from '../types/api';
+import { authService, tripService } from '../services/api';
+
+// Mock axios completely before any usage
 const mockAxiosInstance = {
   get: jest.fn(),
   post: jest.fn(),
@@ -18,12 +22,6 @@ jest.mock('axios', () => ({
   create: jest.fn(() => mockAxiosInstance),
   isAxiosError: jest.fn()
 }));
-
-import axios from 'axios';
-import { AuthResponse, Trip, User } from '../types/api';
-
-// NOW import the services after mocking
-import { authService, tripService } from '../services/api';
 
 const mockedAxios = axios as jest.Mocked<typeof axios>;
 

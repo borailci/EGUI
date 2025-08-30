@@ -1,5 +1,5 @@
 import React from 'react';
-import { render, screen, waitFor, act } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { TripsList } from './pages/TripsList';
 
@@ -63,29 +63,24 @@ describe('TripsList Component', () => {
   });
 
   test('renders trips list component', async () => {
-    await act(async () => {
-      renderTripsList();
-    });
+    renderTripsList();
     
     // The component should render without crashing
     expect(document.body).toBeInTheDocument();
   });
 
   test('displays trips after loading', async () => {
-    await act(async () => {
-      renderTripsList();
-    });
+    renderTripsList();
     
     await waitFor(() => {
       expect(screen.getByText('Test Trip 1')).toBeInTheDocument();
-      expect(screen.getByText('Paris')).toBeInTheDocument();
     });
+    
+    expect(screen.getByText('Paris')).toBeInTheDocument();
   });
 
   test('shows create trip button', async () => {
-    await act(async () => {
-      renderTripsList();
-    });
+    renderTripsList();
     
     await waitFor(() => {
       expect(screen.getByText(/create new trip/i)).toBeInTheDocument();
