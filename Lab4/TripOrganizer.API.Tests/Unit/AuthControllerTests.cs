@@ -1,144 +1,195 @@
-using FluentAssertions;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
-using Microsoft.Extensions.Logging;
 using Moq;
-using System;
-using System.Threading.Tasks;
 using TripOrganizer.API.Controllers;
-using TripOrganizer.API.Data;
 using TripOrganizer.API.Models;
 using Xunit;
+using FluentAssertions;
+using System.Security.Claims;
 
 namespace TripOrganizer.API.Tests.Unit
 {
-    public class AuthControllerTests : IDisposable
+    public class AuthControllerTests
     {
-        private readonly ApplicationDbContext _context;
+        private readonly Mock<UserManager<User>> _userManagerMock;
+        private readonly Mock<IConfiguration> _configurationMock;
         private readonly AuthController _controller;
-        private readonly Mock<ILogger<AuthController>> _mockLogger;
-        private readonly Mock<IConfiguration> _mockConfiguration;
 
         public AuthControllerTests()
         {
-            // Setup InMemory database
-            var options = new DbContextOptionsBuilder<ApplicationDbContext>()
-                .UseInMemoryDatabase(databaseName: Guid.NewGuid().ToString())
-                .Options;
+            // Mock UserManager
+            var userStore = new Mock<IUserStore<User>>();
+            _userManagerMock = new Mock<UserManager<User>>(
+                userStore.Object, null!, null!, null!, null!, null!, null!, null!, null!);
 
-            _context = new ApplicationDbContext(options);
-            _mockLogger = new Mock<ILogger<AuthController>>();
-            _mockConfiguration = new Mock<IConfiguration>();
+            // Mock Configuration
+            _configurationMock = new Mock<IConfiguration>();
+            _configurationMock.Setup(x => x["Jwt:Key"]).Returns("ThisIsASecretKeyThatIsAtLeast32CharactersLong");
+            _configurationMock.Setup(x => x["Jwt:Issuer"]).Returns("TripOrganizer");
+            _configurationMock.Setup(x => x["Jwt:Audience"]).Returns("TripOrganizer");
 
-            // Setup JWT configuration mock
-            _mockConfiguration.Setup(x => x["Jwt:Key"])
-                .Returns("test-secret-key-that-is-long-enough-for-hs256-algorithm-testing");
-            _mockConfiguration.Setup(x => x["Jwt:Issuer"])
-                .Returns("test-issuer");
-            _mockConfiguration.Setup(x => x["Jwt:Audience"])
-                .Returns("test-audience");
-            _mockConfiguration.Setup(x => x["Jwt:ExpiryInMinutes"])
-                .Returns("60");
-
-            _controller = new AuthController(_context, _mockConfiguration.Object, _mockLogger.Object);
+            _controller = new AuthController(_userManagerMock.Object, _configurationMock.Object);
         }
 
         [Fact]
-        public async Task Register_ReturnsConflict_WhenUserAlreadyExists()
+        public async Task Register_WithValidData_ReturnsOk()
         {
             // Arrange
-            var existingUser = new User
-            {
-                Id = 1,
-                Email = "test@example.com",
-                Username = "testuser",
-                PasswordHash = "hashedpassword"
-            };
-
-            _context.Users.Add(existingUser);
-            await _context.SaveChangesAsync();
-
-            var registerRequest = new
+            var registerModel = new RegisterModel
             {
                 Email = "test@example.com",
-                Username = "newuser",
-                Password = "Password123!"
+                Password = "TestPassword123!",
+                FullName = "Test User"
             };
 
-            // Act
-            var result = await _controller.Register(registerRequest);
+            _userManagerMock.Setup(x => x.CreateAsync(It.IsAny<User>(), registerModel.Password))
+                .ReturnsAsync(IdentityResult.Success);
 
-            // Assert
-            Assert.IsType<ConflictObjectResult>(result);
-        }
-
-        [Fact]
-        public async Task Register_ReturnsBadRequest_WhenEmailIsInvalid()
-        {
-            // Arrange
-            var registerRequest = new
+            var createdUser = new User
             {
-                Email = "invalid-email",
-                Username = "testuser",
-                Password = "Password123!"
+                Id = "test-id",
+                Email = registerModel.Email,
+                UserName = registerModel.Email,
+                FullName = registerModel.FullName
             };
 
+            _userManagerMock.Setup(x => x.FindByEmailAsync(registerModel.Email))
+                .ReturnsAsync(createdUser);
+
+            _userManagerMock.Setup(x => x.GetClaimsAsync(createdUser))
+                .ReturnsAsync(new List<Claim>());
+
             // Act
-            var result = await _controller.Register(registerRequest);
+            var result = await _controller.Register(registerModel);
 
             // Assert
-            Assert.IsType<BadRequestObjectResult>(result);
+            result.Should().BeOfType<OkObjectResult>();
+            var okResult = result as OkObjectResult;
+            okResult!.Value.Should().NotBeNull();
         }
 
         [Fact]
-        public async Task Login_ReturnsUnauthorized_WhenUserDoesNotExist()
+        public async Task Register_WithExistingEmail_ReturnsBadRequest()
         {
             // Arrange
-            var loginRequest = new
+            var registerModel = new RegisterModel
             {
-                Email = "nonexistent@example.com",
-                Password = "Password123!"
+                Email = "existing@example.com",
+                Password = "TestPassword123!",
+                FullName = "Test User"
             };
 
+            var errors = new IdentityError[]
+            {
+                new IdentityError { Code = "DuplicateUserName", Description = "Username already exists" }
+            };
+
+            _userManagerMock.Setup(x => x.CreateAsync(It.IsAny<User>(), registerModel.Password))
+                .ReturnsAsync(IdentityResult.Failed(errors));
+
             // Act
-            var result = await _controller.Login(loginRequest);
+            var result = await _controller.Register(registerModel);
 
             // Assert
-            Assert.IsType<UnauthorizedObjectResult>(result);
+            result.Should().BeOfType<BadRequestObjectResult>();
         }
 
         [Fact]
-        public async Task Login_ReturnsUnauthorized_WhenPasswordIsIncorrect()
+        public async Task Login_WithValidCredentials_ReturnsOkWithToken()
         {
             // Arrange
+            var loginModel = new LoginModel
+            {
+                Email = "test@example.com",
+                Password = "TestPassword123!"
+            };
+
             var user = new User
             {
-                Id = 1,
-                Email = "test@example.com",
-                Username = "testuser",
-                PasswordHash = BCrypt.Net.BCrypt.HashPassword("CorrectPassword123!")
+                Id = "test-id",
+                Email = loginModel.Email,
+                UserName = loginModel.Email,
+                FullName = "Test User"
             };
 
-            _context.Users.Add(user);
-            await _context.SaveChangesAsync();
+            _userManagerMock.Setup(x => x.FindByEmailAsync(loginModel.Email))
+                .ReturnsAsync(user);
 
-            var loginRequest = new
-            {
-                Email = "test@example.com",
-                Password = "WrongPassword123!"
-            };
+            _userManagerMock.Setup(x => x.CheckPasswordAsync(user, loginModel.Password))
+                .ReturnsAsync(true);
+
+            _userManagerMock.Setup(x => x.GetClaimsAsync(user))
+                .ReturnsAsync(new List<Claim>());
 
             // Act
-            var result = await _controller.Login(loginRequest);
+            var result = await _controller.Login(loginModel);
 
             // Assert
-            Assert.IsType<UnauthorizedObjectResult>(result);
+            result.Should().BeOfType<OkObjectResult>();
+            var okResult = result as OkObjectResult;
+            okResult!.Value.Should().NotBeNull();
         }
 
-        public void Dispose()
+        [Fact]
+        public async Task Login_WithInvalidCredentials_ReturnsUnauthorized()
         {
-            _context.Dispose();
+            // Arrange
+            var loginModel = new LoginModel
+            {
+                Email = "test@example.com",
+                Password = "WrongPassword"
+            };
+
+            var user = new User
+            {
+                Id = "test-id",
+                Email = loginModel.Email,
+                UserName = loginModel.Email,
+                FullName = "Test User"
+            };
+
+            _userManagerMock.Setup(x => x.FindByEmailAsync(loginModel.Email))
+                .ReturnsAsync(user);
+
+            _userManagerMock.Setup(x => x.CheckPasswordAsync(user, loginModel.Password))
+                .ReturnsAsync(false);
+
+            // Act
+            var result = await _controller.Login(loginModel);
+
+            // Assert
+            result.Should().BeOfType<UnauthorizedObjectResult>();
+        }
+
+        [Fact]
+        public async Task Login_WithNonExistentUser_ReturnsUnauthorized()
+        {
+            // Arrange
+            var loginModel = new LoginModel
+            {
+                Email = "nonexistent@example.com",
+                Password = "TestPassword123!"
+            };
+
+            _userManagerMock.Setup(x => x.FindByEmailAsync(loginModel.Email))
+                .ReturnsAsync((User?)null);
+
+            // Act
+            var result = await _controller.Login(loginModel);
+
+            // Assert
+            result.Should().BeOfType<UnauthorizedObjectResult>();
+        }
+
+        [Fact]
+        public void HealthCheck_ReturnsOk()
+        {
+            // Act
+            var result = _controller.HealthCheck();
+
+            // Assert
+            result.Should().BeOfType<OkObjectResult>();
         }
     }
 }

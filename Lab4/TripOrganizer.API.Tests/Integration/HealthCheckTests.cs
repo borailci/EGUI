@@ -6,6 +6,7 @@ using System.Net.Http;
 using System.Threading.Tasks;
 using TripOrganizer.API.Data;
 using Xunit;
+using Microsoft.Extensions.Configuration;
 
 namespace TripOrganizer.API.Tests.Integration
 {
@@ -35,6 +36,15 @@ namespace TripOrganizer.API.Tests.Integration
                         options.UseInMemoryDatabase("TestDatabase");
                     });
                 });
+
+                // Configure test settings to avoid migration issues
+                builder.ConfigureAppConfiguration((context, config) =>
+                {
+                    config.AddInMemoryCollection(new[]
+                    {
+                        new KeyValuePair<string, string?>("ConnectionStrings:DefaultConnection", "InMemoryDatabase")
+                    });
+                });
             });
 
             _client = _factory.CreateClient();
@@ -60,7 +70,7 @@ namespace TripOrganizer.API.Tests.Integration
             var response = await _client.GetAsync("/health");
 
             // Assert
-            Assert.Equal("text/plain", response.Content.Headers.ContentType?.MediaType);
+            Assert.Equal("application/json", response.Content.Headers.ContentType?.MediaType);
         }
     }
 }

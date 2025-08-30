@@ -178,15 +178,29 @@ try
             logger.LogInformation("Attempting to connect to database...");
             Console.WriteLine("Testing database connection...");
 
-            // Test the connection explicitly
-            if (!context.Database.CanConnect())
+            // Check if we're using an in-memory database
+            var isInMemory = context.Database.ProviderName == "Microsoft.EntityFrameworkCore.InMemory";
+
+            // Test the connection explicitly (skip for in-memory databases)
+            if (!isInMemory && !context.Database.CanConnect())
             {
                 throw new Exception("Cannot connect to the database. Please check your connection string and ensure PostgreSQL is running.");
             }
 
             Console.WriteLine("Database connection successful. Applying migrations...");
-            context.Database.Migrate();
-            logger.LogInformation("Database migration completed successfully.");
+
+            // Only run migrations for relational databases (not in-memory)
+            if (!isInMemory)
+            {
+                context.Database.Migrate();
+                logger.LogInformation("Database migration completed successfully.");
+            }
+            else
+            {
+                // For in-memory databases, just ensure the schema is created
+                context.Database.EnsureCreated();
+                logger.LogInformation("In-memory database schema created.");
+            }
         }
         catch (Exception ex)
         {
@@ -207,3 +221,6 @@ catch (Exception ex)
     Console.WriteLine($"Stack trace: {ex.StackTrace}");
     throw;
 }
+
+// Make the implicit Program class accessible to tests
+public partial class Program { }

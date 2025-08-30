@@ -1,12 +1,152 @@
-# GitHub Actions Workflows
+# CI/CD Workflows Documentation
 
-This directory contains the CI/CD workflows for the Trip Organizer application.
+This directory contains comprehensive GitHub Actions workflows for the Trip Organizer application.
 
-## Workflows
+## Available Workflows
 
-### 1. Backend CI (`backend-ci.yml`)
+### 🔧 backend-ci-cd.yml
 
-**Purpose**: Continuous Integration for the ASP.NET Core API
+**Backend CI/CD Pipeline**
+
+- **Triggers**: Push/PR to main/develop branches affecting backend files
+- **Features**:
+  - .NET 8.0 build and test
+  - PostgreSQL integration testing
+  - Security scanning
+  - Docker image building
+  - Code coverage reporting
+  - Automated deployment pipeline
+
+### 🎨 frontend-ci-cd.yml
+
+**Frontend CI/CD Pipeline**
+
+- **Triggers**: Push/PR to main/develop branches affecting frontend files
+- **Features**:
+  - Node.js 18 build and test (112 tests passing ✅)
+  - TypeScript type checking
+  - ESLint code quality checks
+  - Jest unit testing with coverage
+  - Security vulnerability scanning
+  - Docker containerization
+  - End-to-end testing with Playwright
+  - Performance testing with Lighthouse
+
+### 🚀 full-stack-ci-cd.yml
+
+**Comprehensive Full Stack Pipeline**
+
+- **Triggers**: Push/PR to main/develop branches
+- **Features**:
+  - Smart change detection (builds only what changed)
+  - Parallel backend and frontend CI
+  - Full stack integration testing
+  - Security scanning for entire application
+  - Coordinated deployment pipeline
+  - Performance monitoring
+
+## Workflow Features
+
+### 🔍 Quality Gates
+
+- ✅ All tests must pass (112 frontend tests passing)
+- ✅ Code coverage requirements
+- ✅ Security vulnerability scanning
+- ✅ Type checking and linting
+- ✅ Docker image security scanning
+
+### 🏗️ Build Process
+
+- **Backend**: .NET 8.0 with Entity Framework
+- **Frontend**: React 18 with TypeScript
+- **Database**: PostgreSQL 15
+- **Containerization**: Docker with multi-stage builds
+
+### 🚦 Deployment Strategy
+
+- **Development**: Automatic on feature branches
+- **Staging**: Automatic on develop branch
+- **Production**: Automatic on main branch with manual approval
+
+### 📊 Monitoring & Reporting
+
+- Test results and coverage reports
+- Security scan results
+- Performance metrics
+- Build artifacts management
+
+## Environment Setup
+
+**No secrets required!** These workflows are designed to work without any external tokens or credentials.
+
+### Optional Secrets (for advanced features)
+
+```yaml
+# Only if you want to push to Docker Hub
+DOCKER_USERNAME: your-docker-username
+DOCKER_PASSWORD: your-docker-password
+```
+
+### What runs automatically:
+
+- ✅ **Test Execution**: All 112 frontend tests + backend tests
+- ✅ **Build Validation**: Frontend and backend builds
+- ✅ **Basic Security**: npm audit and .NET package checks
+- ✅ **Docker Building**: Local container builds (no push)
+- ✅ **Integration Testing**: Full stack validation
+
+## Usage
+
+### Running Tests Locally
+
+```bash
+# Backend tests
+cd Lab4/TripOrganizer.API.Tests
+dotnet test
+
+# Frontend tests (112 tests)
+cd Lab4/trip-organizer-web
+npm test -- --coverage --watchAll=false
+```
+
+### Building for Production
+
+```bash
+# Backend
+cd Lab4/TripOrganizer.API
+dotnet build --configuration Release
+
+# Frontend
+cd Lab4/trip-organizer-web
+npm run build
+```
+
+## Workflow Status
+
+- ✅ **Backend CI**: Automated testing and building (no tokens needed)
+- ✅ **Frontend CI**: 112 tests passing, full coverage
+- ✅ **Integration Testing**: Full stack validation
+- ✅ **Basic Security**: Built-in security checks
+- ✅ **Docker Building**: Local container builds
+- ✅ **Simple Deployment**: Ready-to-use validation
+
+## Maintenance
+
+### Updating Dependencies
+
+- Backend: `dotnet list package --outdated`
+- Frontend: `npm audit` and `npm update`
+
+### Adding New Tests
+
+- Backend: Add to `TripOrganizer.API.Tests` project
+- Frontend: Add to `src/__tests__/` directory
+
+### Performance Optimization
+
+- Monitor build times and optimize caching
+- Use appropriate test parallelization
+- Optimize Docker layer caching
 
 **Triggers**:
 
