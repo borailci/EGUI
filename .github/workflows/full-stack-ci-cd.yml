@@ -14,35 +14,10 @@ env:
   TEST_PROJECT_PATH: './Lab4/TripOrganizer.API.Tests'
 
 jobs:
-  # Detect changes to determine what to build
-  changes:
-    name: Detect Changes
-    runs-on: ubuntu-latest
-    outputs:
-      backend: ${{ steps.changes.outputs.backend }}
-      frontend: ${{ steps.changes.outputs.frontend }}
-    steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
-      
-    - name: Check for changes
-      uses: dorny/paths-filter@v2
-      id: changes
-      with:
-        filters: |
-          backend:
-            - 'Lab4/TripOrganizer.API/**'
-            - 'Lab4/TripOrganizer.API.Tests/**'
-            - 'Lab4/docker-compose*.yml'
-          frontend:
-            - 'Lab4/trip-organizer-web/**'
-
   # Backend CI/CD
   backend-ci:
     name: Backend CI
     runs-on: ubuntu-latest
-    needs: changes
-    if: needs.changes.outputs.backend == 'true'
     
     services:
       postgres:
@@ -102,8 +77,6 @@ jobs:
   frontend-ci:
     name: Frontend CI
     runs-on: ubuntu-latest
-    needs: changes
-    if: needs.changes.outputs.frontend == 'true'
     
     steps:
     - name: Checkout code
