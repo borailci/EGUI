@@ -27,6 +27,7 @@
     "test-react": "react-scripts test",
     "test-custom": "SKIP_PREFLIGHT_CHECK=true react-scripts test --testMatch='**/src/**/*.test.(js|jsx|ts|tsx)' --watchAll=false",
     "eject": "react-scripts eject",
+    "type-check": "tsc --noEmit",
     "lint": "eslint src --ext .js,.jsx,.ts,.tsx",
     "fix-vulnerabilities": "npm audit fix --dry-run && npm audit fix --only=prod"
   },

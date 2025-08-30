@@ -106,11 +106,26 @@ describe('Profile Component', () => {
   });
 
   describe('Password Validation', () => {
-    it.skip('should show error when passwords do not match', () => {
-      renderWithTheme(<Profile />);
+    it('should show error when passwords do not match', async () => {
+      const { container } = renderWithTheme(<Profile />);
       
-      // Skip this test due to password field selection complexity
-      expect(true).toBe(true);
+      // Get password fields by name attribute
+      const newPasswordField = container.querySelector('input[name="newPassword"]') as HTMLInputElement;
+      const confirmPasswordField = container.querySelector('input[name="confirmPassword"]') as HTMLInputElement;
+      
+      // Enter mismatched passwords
+      fireEvent.change(newPasswordField, { target: { value: 'password123' } });
+      fireEvent.change(confirmPasswordField, { target: { value: 'differentpassword' } });
+      
+      // Check that error message is displayed
+      await waitFor(() => {
+        expect(screen.getByText("Passwords don't match")).toBeInTheDocument();
+      });
+      
+      // Check that confirmPassword field has error attribute
+      await waitFor(() => {
+        expect(confirmPasswordField).toHaveAttribute('aria-invalid', 'true');
+      });
     });
   });
 
@@ -167,20 +182,77 @@ describe('Profile Component', () => {
       expect(submitButton).toBeDisabled();
     });
 
-    it.skip('should validate password length', async () => {
-      renderWithTheme(<Profile />);
+    it('should validate password length', async () => {
+      const mockUpdateUser = jest.fn();
+      mockUseAuth.mockReturnValue({ 
+        user: mockUser, 
+        updateUser: mockUpdateUser, 
+        login: jest.fn(), 
+        register: jest.fn(), 
+        logout: jest.fn(), 
+        loading: false 
+      });
+
+      const { container } = renderWithTheme(<Profile />);
       
-      // Skip this test due to password field selection complexity  
-      expect(true).toBe(true);
+      // Fill form with short password
+      const fullNameField = container.querySelector('input[name="fullName"]') as HTMLInputElement;
+      const emailField = container.querySelector('input[name="email"]') as HTMLInputElement;
+      const currentPasswordField = container.querySelector('input[name="currentPassword"]') as HTMLInputElement;
+      const newPasswordField = container.querySelector('input[name="newPassword"]') as HTMLInputElement;
+      const confirmPasswordField = container.querySelector('input[name="confirmPassword"]') as HTMLInputElement;
+      
+      fireEvent.change(fullNameField, { target: { value: 'Updated Name' } });
+      fireEvent.change(emailField, { target: { value: 'updated@example.com' } });
+      fireEvent.change(currentPasswordField, { target: { value: 'currentpass' } });
+      fireEvent.change(newPasswordField, { target: { value: '12345' } }); // Too short
+      fireEvent.change(confirmPasswordField, { target: { value: '12345' } });
+      
+      const submitButton = screen.getByRole('button', { name: /Update Profile/i });
+      fireEvent.click(submitButton);
+      
+      // Should show password length error
+      await waitFor(() => {
+        expect(screen.getByText('New password must be at least 6 characters long')).toBeInTheDocument();
+      });
     });
 
-    it.skip('should clear password fields after successful update', async () => {
+    it('should clear password fields after successful update', async () => {
       mockAuthService.updateProfile.mockResolvedValue(mockUser);
+      const mockUpdateUser = jest.fn();
+      mockUseAuth.mockReturnValue({ 
+        user: mockUser, 
+        updateUser: mockUpdateUser, 
+        login: jest.fn(), 
+        register: jest.fn(), 
+        logout: jest.fn(), 
+        loading: false 
+      });
 
-      renderWithTheme(<Profile />);
+      const { container } = renderWithTheme(<Profile />);
       
-      // Skip this test due to password field selection complexity
-      expect(true).toBe(true);
+      // Fill in password fields
+      const currentPasswordField = container.querySelector('input[name="currentPassword"]') as HTMLInputElement;
+      const newPasswordField = container.querySelector('input[name="newPassword"]') as HTMLInputElement;
+      const confirmPasswordField = container.querySelector('input[name="confirmPassword"]') as HTMLInputElement;
+      
+      fireEvent.change(currentPasswordField, { target: { value: 'currentpass' } });
+      fireEvent.change(newPasswordField, { target: { value: 'newpassword123' } });
+      fireEvent.change(confirmPasswordField, { target: { value: 'newpassword123' } });
+      
+      // Submit the form
+      const submitButton = screen.getByRole('button', { name: /Update Profile/i });
+      fireEvent.click(submitButton);
+      
+      // Wait for success and check password fields are cleared
+      await waitFor(() => {
+        expect(screen.getByText('Profile updated successfully')).toBeInTheDocument();
+      });
+      
+      // Password fields should be cleared
+      expect(currentPasswordField).toHaveValue('');
+      expect(newPasswordField).toHaveValue('');
+      expect(confirmPasswordField).toHaveValue('');
     });
   });
 
@@ -208,11 +280,20 @@ describe('Profile Component', () => {
       expect(screen.getByRole('button', { name: /Update Profile/i })).toBeInTheDocument();
     });
 
-    it.skip('should have proper form structure', () => {
-      renderWithTheme(<Profile />);
+    it('should have proper form structure', () => {
+      const { container } = renderWithTheme(<Profile />);
       
-      // Skip this test - form element may not have role="form"
-      expect(true).toBe(true);
+      // Check that form element exists
+      const form = screen.getByRole('button', { name: /Update Profile/i }).closest('form');
+      expect(form).toBeInTheDocument();
+      
+      // Check form has the right structure - should contain all required fields
+      expect(screen.getByLabelText(/Full Name/i)).toBeInTheDocument();
+      expect(screen.getByLabelText(/Email/i)).toBeInTheDocument();
+      expect(screen.getByLabelText(/Current Password/i)).toBeInTheDocument();
+      expect(container.querySelector('input[name="newPassword"]')).toBeInTheDocument();
+      expect(container.querySelector('input[name="confirmPassword"]')).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: /Update Profile/i })).toBeInTheDocument();
     });
 
     it('should have required field attributes', () => {
