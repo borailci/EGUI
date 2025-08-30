@@ -19,7 +19,7 @@ on:
       - '.github/workflows/backend-ci-cd.yml'
 
 env:
-  DOTNET_VERSION: '8.0'
+  DOTNET_VERSION: '9.0'
   PROJECT_PATH: './Lab4/TripOrganizer.API'
   TEST_PROJECT_PATH: './Lab4/TripOrganizer.API.Tests'
   DOCKER_IMAGE_NAME: 'trip-organizer-api'
@@ -66,6 +66,9 @@ jobs:
       run: |
         cd ${{ env.PROJECT_PATH }}
         dotnet restore
+        cd ..
+        cd TripOrganizer.API.Tests
+        dotnet restore
 
     - name: Build application
       run: |
@@ -75,7 +78,7 @@ jobs:
     - name: Run unit tests
       run: |
         cd ${{ env.TEST_PROJECT_PATH }}
-        dotnet test --no-build --configuration Release --verbosity normal --collect:"XPlat Code Coverage" --results-directory ./coverage
+        dotnet test --configuration Release --verbosity normal --collect:"XPlat Code Coverage" --results-directory ./coverage
 
     - name: Upload test results
       uses: actions/upload-artifact@v4

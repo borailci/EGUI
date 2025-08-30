@@ -10,7 +10,7 @@ This directory contains comprehensive GitHub Actions workflows for the Trip Orga
 
 - **Triggers**: Push/PR to main/develop branches affecting backend files
 - **Features**:
-  - .NET 8.0 build and test
+  - .NET 9.0 build and test
   - PostgreSQL integration testing
   - Security scanning
   - Docker image building
@@ -57,7 +57,7 @@ This directory contains comprehensive GitHub Actions workflows for the Trip Orga
 
 ### 🏗️ Build Process
 
-- **Backend**: .NET 8.0 with Entity Framework
+- **Backend**: .NET 9.0 with Entity Framework
 - **Frontend**: React 18 with TypeScript
 - **Database**: PostgreSQL 15
 - **Containerization**: Docker with multi-stage builds

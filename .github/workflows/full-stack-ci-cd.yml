@@ -7,7 +7,7 @@ on:
     branches: [ main, develop ]
 
 env:
-  DOTNET_VERSION: '8.0'
+  DOTNET_VERSION: '9.0'
   NODE_VERSION: '18'
   BACKEND_PATH: './Lab4/TripOrganizer.API'
   FRONTEND_PATH: './Lab4/trip-organizer-web'
@@ -55,6 +55,9 @@ jobs:
       run: |
         cd ${{ env.BACKEND_PATH }}
         dotnet restore
+        cd ..
+        cd TripOrganizer.API.Tests
+        dotnet restore
 
     - name: Build backend
       run: |
@@ -64,7 +67,7 @@ jobs:
     - name: Run backend tests
       run: |
         cd ${{ env.TEST_PROJECT_PATH }}
-        dotnet test --no-build --configuration Release --verbosity normal --collect:"XPlat Code Coverage"
+        dotnet test --configuration Release --verbosity normal --collect:"XPlat Code Coverage"
 
     - name: Upload backend test results
       uses: actions/upload-artifact@v4
