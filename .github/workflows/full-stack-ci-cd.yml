@@ -161,11 +161,11 @@ jobs:
     - name: Run integration tests
       run: |
         cd Lab4
-        docker-compose up -d postgres
+        docker compose up -d postgres
         sleep 10
         echo "🧪 Running full stack integration tests..."
         echo "This would test the complete application flow"
-        docker-compose down
+        docker compose down
 
   # Security scanning for the full stack
   security-scan:
