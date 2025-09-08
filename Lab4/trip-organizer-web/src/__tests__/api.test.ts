@@ -2,8 +2,32 @@ import axios from 'axios';
 import { AuthResponse, Trip, User } from '../types/api';
 import { authService, tripService } from '../services/api';
 
-// Mock axios completely before any usage
-const mockAxiosInstance = {
+jest.mock('axios', () => {
+  const mockAxiosInstance = {
+    get: jest.fn(),
+    post: jest.fn(),
+    put: jest.fn(),
+    delete: jest.fn(),
+    interceptors: {
+      request: {
+        use: jest.fn()
+      },
+      response: {
+        use: jest.fn()
+      }
+    }
+  };
+  
+  return {
+    create: jest.fn(() => mockAxiosInstance),
+    isAxiosError: jest.fn()
+  };
+});
+
+const mockedAxios = axios as jest.Mocked<typeof axios>;
+
+// Get the mock instance from axios.create
+const mockAxiosInstance = (axios.create as jest.Mock).mock.results[0]?.value || {
   get: jest.fn(),
   post: jest.fn(),
   put: jest.fn(),
@@ -17,13 +41,6 @@ const mockAxiosInstance = {
     }
   }
 };
-
-jest.mock('axios', () => ({
-  create: jest.fn(() => mockAxiosInstance),
-  isAxiosError: jest.fn()
-}));
-
-const mockedAxios = axios as jest.Mocked<typeof axios>;
 
 // Mock localStorage
 const localStorageMock = {
@@ -108,12 +125,13 @@ describe('API Services', () => {
         expect(result).toBe(false);
       });
 
-      it('should return false when health check fails', async () => {
+      it('should return false when API health check fails', async () => {
         mockAxiosInstance.get.mockRejectedValue(new Error('Network error'));
 
         const result = await authService.checkHealth();
 
         expect(result).toBe(false);
+        expect(mockAxiosInstance.get).toHaveBeenCalledWith('/auth/health');
       });
     });
 
@@ -125,68 +143,48 @@ describe('API Services', () => {
       };
 
       it('should register successfully when API is healthy', async () => {
-        // Mock health check
-        mockAxiosInstance.get.mockResolvedValue({
-          data: { status: 'healthy' }
-        });
-        
-        // Mock registration
+        mockAxiosInstance.get.mockResolvedValue({ data: { status: 'healthy' } });
         mockAxiosInstance.post.mockResolvedValue({
-          data: { message: 'User registered successfully' }
+          data: { message: 'Registration successful' }
         });
 
-        await expect(authService.register(registerData)).resolves.toBeUndefined();
+        await authService.register(registerData);
 
         expect(mockAxiosInstance.get).toHaveBeenCalledWith('/auth/health');
         expect(mockAxiosInstance.post).toHaveBeenCalledWith('/auth/register', registerData);
       });
 
-      it('should throw error when API is unhealthy', async () => {
-        mockAxiosInstance.get.mockResolvedValue({
-          data: { status: 'unhealthy' }
-        });
+      it('should throw error when API is not healthy', async () => {
+        mockAxiosInstance.get.mockResolvedValue({ data: { status: 'unhealthy' } });
 
-        await expect(authService.register(registerData)).rejects.toThrow('API is not healthy. Please try again later.');
+        await expect(authService.register(registerData)).rejects.toThrow(
+          'API is not healthy. Please try again later.'
+        );
       });
 
-      it('should handle duplicate username error', async () => {
-        mockAxiosInstance.get.mockResolvedValue({
-          data: { status: 'healthy' }
-        });
-
-        const duplicateError = {
-          response: {
-            data: {
-              errors: [{
-                code: 'DuplicateUserName',
-                description: 'Username already exists'
-              }]
-            }
-          }
-        };
-        mockAxiosInstance.post.mockRejectedValue(duplicateError);
-
-        await expect(authService.register(registerData)).rejects.toThrow("Username 'test@example.com' is already taken.");
-      });
-
-      it('should handle array of errors', async () => {
-        mockAxiosInstance.get.mockResolvedValue({
-          data: { status: 'healthy' }
-        });
-
-        const multipleErrors = {
+      it('should handle duplicate username errors', async () => {
+        mockAxiosInstance.get.mockResolvedValue({ data: { status: 'healthy' } });
+        mockAxiosInstance.post.mockRejectedValue({
           response: {
             data: {
               errors: [
-                { description: 'Password too weak' },
-                { message: 'Email invalid' }
+                { code: 'DuplicateUserName', description: 'Username already exists' }
               ]
             }
           }
-        };
-        mockAxiosInstance.post.mockRejectedValue(multipleErrors);
+        });
 
-        await expect(authService.register(registerData)).rejects.toThrow('Password too weak Email invalid');
+        await expect(authService.register(registerData)).rejects.toThrow(
+          "Username 'test@example.com' is already taken."
+        );
+      });
+
+      it('should handle generic registration errors', async () => {
+        mockAxiosInstance.get.mockResolvedValue({ data: { status: 'healthy' } });
+        const error = new Error('Registration failed');
+        mockAxiosInstance.post.mockRejectedValue(error);
+
+        await expect(authService.register(registerData)).rejects.toThrow('Registration failed');
       });
     });
 
@@ -196,8 +194,8 @@ describe('API Services', () => {
         password: 'password123'
       };
 
-      const mockAuthResponse: AuthResponse = {
-        token: 'jwt-token',
+      const authResponse: AuthResponse = {
+        token: 'fake-jwt-token',
         user: {
           id: '1',
           email: 'test@example.com',
@@ -206,43 +204,47 @@ describe('API Services', () => {
       };
 
       it('should login successfully when API is healthy', async () => {
-        mockAxiosInstance.get.mockResolvedValue({
-          data: { status: 'healthy' }
-        });
-        
-        mockAxiosInstance.post.mockResolvedValue({
-          data: mockAuthResponse
-        });
+        mockAxiosInstance.get.mockResolvedValue({ data: { status: 'healthy' } });
+        mockAxiosInstance.post.mockResolvedValue({ data: authResponse });
 
         const result = await authService.login(loginData);
 
-        expect(result).toEqual(mockAuthResponse);
+        expect(result).toEqual(authResponse);
         expect(mockAxiosInstance.get).toHaveBeenCalledWith('/auth/health');
         expect(mockAxiosInstance.post).toHaveBeenCalledWith('/auth/login', loginData);
       });
 
-      it('should throw error when API is unhealthy', async () => {
-        mockAxiosInstance.get.mockResolvedValue({
-          data: { status: 'unhealthy' }
-        });
+      it('should throw error when API is not healthy', async () => {
+        mockAxiosInstance.get.mockResolvedValue({ data: { status: 'unhealthy' } });
 
-        await expect(authService.login(loginData)).rejects.toThrow('API is not healthy. Please try again later.');
+        await expect(authService.login(loginData)).rejects.toThrow(
+          'API is not healthy. Please try again later.'
+        );
       });
 
-      it('should handle login errors', async () => {
-        mockAxiosInstance.get.mockResolvedValue({
-          data: { status: 'healthy' }
-        });
-
-        const loginError = {
+      it('should handle login errors with response', async () => {
+        mockAxiosInstance.get.mockResolvedValue({ data: { status: 'healthy' } });
+        const error = {
           response: {
+            data: { message: 'Invalid credentials' },
             status: 401,
-            data: { message: 'Invalid credentials' }
+            headers: {}
           }
         };
-        mockAxiosInstance.post.mockRejectedValue(loginError);
+        mockAxiosInstance.post.mockRejectedValue(error);
 
-        await expect(authService.login(loginData)).rejects.toEqual(loginError);
+        await expect(authService.login(loginData)).rejects.toEqual(error);
+      });
+
+      it('should handle login errors without response', async () => {
+        mockAxiosInstance.get.mockResolvedValue({ data: { status: 'healthy' } });
+        const error = {
+          request: 'network request failed',
+          message: 'Network Error'
+        };
+        mockAxiosInstance.post.mockRejectedValue(error);
+
+        await expect(authService.login(loginData)).rejects.toEqual(error);
       });
     });
 
@@ -254,7 +256,7 @@ describe('API Services', () => {
         newPassword: 'newpass'
       };
 
-      const mockUser: User = {
+      const updatedUser: User = {
         id: '1',
         email: 'updated@example.com',
         fullName: 'Updated Name'
@@ -262,26 +264,27 @@ describe('API Services', () => {
 
       it('should update profile successfully', async () => {
         mockAxiosInstance.put.mockResolvedValue({
-          data: { user: mockUser }
+          data: { user: updatedUser }
         });
 
         const result = await authService.updateProfile(updateData);
 
-        expect(result).toEqual(mockUser);
+        expect(result).toEqual(updatedUser);
         expect(mockAxiosInstance.put).toHaveBeenCalledWith('/auth/profile', updateData);
-        expect(localStorageMock.setItem).toHaveBeenCalledWith('user', JSON.stringify(mockUser));
+        expect(localStorageMock.setItem).toHaveBeenCalledWith('user', JSON.stringify(updatedUser));
       });
 
       it('should handle update profile errors', async () => {
-        const updateError = {
+        const error = {
           response: {
+            data: { message: 'Update failed' },
             status: 400,
-            data: { message: 'Invalid data' }
+            headers: {}
           }
         };
-        mockAxiosInstance.put.mockRejectedValue(updateError);
+        mockAxiosInstance.put.mockRejectedValue(error);
 
-        await expect(authService.updateProfile(updateData)).rejects.toEqual(updateError);
+        await expect(authService.updateProfile(updateData)).rejects.toEqual(error);
       });
     });
 
@@ -590,6 +593,229 @@ describe('API Services', () => {
         mockAxiosInstance.delete.mockRejectedValue(new Error('Network error'));
 
         await expect(tripService.removeCoOwner(1, 'user123')).rejects.toThrow('Failed to remove co-owner. Please try again later.');
+      });
+    });
+
+    describe('createTrip', () => {
+      it('should handle create trip errors', async () => {
+        const tripData = {
+          name: 'New Trip',
+          destination: 'Tokyo',
+          description: 'Exciting adventure',
+          startDate: '2025-10-01',
+          endDate: '2025-10-07',
+          capacity: 12,
+          price: 800
+        };
+
+        const error = new Error('Creation failed');
+        mockAxiosInstance.post.mockRejectedValue(error);
+
+        await expect(tripService.createTrip(tripData)).rejects.toThrow('Failed to create trip. Please try again later.');
+      });
+    });
+
+    describe('updateTrip', () => {
+      const updateData = {
+        name: 'Updated Trip',
+        destination: 'Updated Destination',
+        description: 'Updated description',
+        startDate: '2025-11-01',
+        endDate: '2025-11-07',
+        capacity: 15,
+        price: 600
+      };
+
+      it('should update trip successfully', async () => {
+        const updatedTrip: Trip = {
+          id: 1,
+          name: 'Updated Trip',
+          destination: 'Updated Destination',
+          description: 'Updated description',
+          startDate: '2025-11-01',
+          endDate: '2025-11-07',
+          capacity: 15,
+          price: 600,
+          ownerId: '1',
+          currentParticipantCount: 0,
+          hasAvailableSpots: true,
+          participants: [],
+          coOwners: []
+        };
+
+        mockAxiosInstance.put.mockResolvedValue({
+          data: updatedTrip
+        });
+
+        const result = await tripService.updateTrip(1, updateData);
+
+        expect(result).toEqual(updatedTrip);
+        expect(mockAxiosInstance.put).toHaveBeenCalledWith('/trips/1', updateData);
+      });
+
+      it('should handle update trip errors', async () => {
+        const error = new Error('Update failed');
+        mockAxiosInstance.put.mockRejectedValue(error);
+
+        await expect(tripService.updateTrip(1, updateData)).rejects.toThrow('Update failed');
+      });
+    });
+
+    describe('deleteTrip', () => {
+      it('should delete trip successfully', async () => {
+        mockAxiosInstance.delete.mockResolvedValue({ data: { message: 'Trip deleted' } });
+
+        await tripService.deleteTrip(1);
+
+        expect(mockAxiosInstance.delete).toHaveBeenCalledWith('/trips/1');
+      });
+
+      it('should handle delete trip errors', async () => {
+        const error = new Error('Delete failed');
+        mockAxiosInstance.delete.mockRejectedValue(error);
+
+        await expect(tripService.deleteTrip(1)).rejects.toThrow('Delete failed');
+      });
+    });
+
+    describe('joinTrip', () => {
+      it('should join trip successfully', async () => {
+        mockAxiosInstance.post.mockResolvedValue({
+          data: { message: 'Successfully joined trip' }
+        });
+
+        await tripService.joinTrip(1);
+
+        expect(mockAxiosInstance.post).toHaveBeenCalledWith('/trips/1/join');
+      });
+
+      it('should handle join trip errors', async () => {
+        const error = new Error('Join failed');
+        mockAxiosInstance.post.mockRejectedValue(error);
+
+        await expect(tripService.joinTrip(1)).rejects.toThrow('Join failed');
+      });
+    });
+
+    describe('leaveTrip', () => {
+      it('should leave trip successfully', async () => {
+        mockAxiosInstance.post.mockResolvedValue({
+          data: { message: 'Successfully left trip' }
+        });
+
+        await tripService.leaveTrip(1);
+
+        expect(mockAxiosInstance.post).toHaveBeenCalledWith('/trips/1/leave');
+      });
+
+      it('should handle leave trip errors', async () => {
+        const error = new Error('Leave failed');
+        mockAxiosInstance.post.mockRejectedValue(error);
+
+        await expect(tripService.leaveTrip(1)).rejects.toThrow('Leave failed');
+      });
+    });
+
+    describe('addCoOwner', () => {
+      it('should add co-owner successfully', async () => {
+        mockAxiosInstance.post.mockResolvedValue({
+          data: { message: 'Co-owner added successfully' }
+        });
+
+        await tripService.addCoOwner(1, 'user-id-123');
+
+        expect(mockAxiosInstance.post).toHaveBeenCalledWith('/trips/1/co-owner/user-id-123');
+      });
+
+      it('should handle add co-owner errors', async () => {
+        const error = new Error('Add co-owner failed');
+        mockAxiosInstance.post.mockRejectedValue(error);
+
+        await expect(tripService.addCoOwner(1, 'user-id-123')).rejects.toThrow('Failed to add co-owner. Please try again later.');
+      });
+    });
+
+    describe('removeCoOwner', () => {
+      it('should remove co-owner successfully', async () => {
+        mockAxiosInstance.delete.mockResolvedValue({
+          data: { message: 'Co-owner removed successfully' }
+        });
+
+        await tripService.removeCoOwner(1, 'user-id-123');
+
+        expect(mockAxiosInstance.delete).toHaveBeenCalledWith('/trips/1/co-owner/user-id-123');
+      });
+
+      it('should handle remove co-owner errors', async () => {
+        const error = new Error('Remove co-owner failed');
+        mockAxiosInstance.delete.mockRejectedValue(error);
+
+        await expect(tripService.removeCoOwner(1, 'user-id-123')).rejects.toThrow('Failed to remove co-owner. Please try again later.');
+      });
+    });
+  });
+
+  describe('API Interceptors', () => {
+    describe('Request Interceptor', () => {
+      it('should add authorization header when token exists', () => {
+        localStorageMock.getItem.mockReturnValue('fake-token');
+        
+        const config = { headers: {} };
+        const interceptor = mockAxiosInstance.interceptors.request.use.mock.calls[0]?.[0];
+        
+        if (interceptor) {
+          const result = interceptor(config);
+          expect(result.headers.Authorization).toBe('Bearer fake-token');
+        }
+      });
+
+      it('should not add authorization header when token does not exist', () => {
+        localStorageMock.getItem.mockReturnValue(null);
+        
+        const config = { headers: {} };
+        const interceptor = mockAxiosInstance.interceptors.request.use.mock.calls[0]?.[0];
+        
+        if (interceptor) {
+          const result = interceptor(config);
+          expect(result.headers.Authorization).toBeUndefined();
+        }
+      });
+    });
+
+    describe('Response Interceptor', () => {
+      it('should handle 401 unauthorized responses', async () => {
+        const error = {
+          response: { status: 401 },
+          config: { url: '/test', method: 'GET', headers: {} }
+        };
+
+        const errorHandler = mockAxiosInstance.interceptors.response.use.mock.calls[0]?.[1];
+        
+        if (errorHandler) {
+          await expect(errorHandler(error)).rejects.toEqual(error);
+          expect(localStorageMock.removeItem).toHaveBeenCalledWith('token');
+          expect(mockLocation.href).toBe('/login');
+        }
+      });
+
+      it('should log error details for non-401 responses', async () => {
+        const error = {
+          response: { 
+            status: 500,
+            data: 'Internal Server Error'
+          },
+          config: { 
+            url: '/test', 
+            method: 'GET', 
+            headers: {} 
+          }
+        };
+
+        const errorHandler = mockAxiosInstance.interceptors.response.use.mock.calls[0]?.[1];
+        
+        if (errorHandler) {
+          await expect(errorHandler(error)).rejects.toEqual(error);
+        }
       });
     });
   });

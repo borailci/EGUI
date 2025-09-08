@@ -109,9 +109,9 @@ describe('Profile Component', () => {
     it('should show error when passwords do not match', async () => {
       renderWithTheme(<Profile />);
       
-      // Get password fields by name attribute
-      const newPasswordField = screen.getByRole('textbox', { name: /new password/i }) as HTMLInputElement;
-      const confirmPasswordField = screen.getByRole('textbox', { name: /confirm password/i }) as HTMLInputElement;
+      // Get password fields by their specific labels
+      const newPasswordField = screen.getByLabelText(/^New Password/i) as HTMLInputElement;
+      const confirmPasswordField = screen.getByLabelText(/^Confirm New Password/i) as HTMLInputElement;
       
       // Enter mismatched passwords
       fireEvent.change(newPasswordField, { target: { value: 'password123' } });
@@ -196,11 +196,11 @@ describe('Profile Component', () => {
       renderWithTheme(<Profile />);
       
       // Fill form with short password
-      const fullNameField = screen.getByRole('textbox', { name: /full name/i }) as HTMLInputElement;
-      const emailField = screen.getByRole('textbox', { name: /email/i }) as HTMLInputElement;
-      const currentPasswordField = screen.getByLabelText(/current password/i) as HTMLInputElement;
-      const newPasswordField = screen.getByLabelText(/new password/i) as HTMLInputElement;
-      const confirmPasswordField = screen.getByLabelText(/confirm password/i) as HTMLInputElement;
+      const fullNameField = screen.getByLabelText(/Full Name/i) as HTMLInputElement;
+      const emailField = screen.getByLabelText(/Email/i) as HTMLInputElement;
+      const currentPasswordField = screen.getByLabelText(/Current Password/i) as HTMLInputElement;
+      const newPasswordField = screen.getByLabelText(/^New Password/i) as HTMLInputElement;
+      const confirmPasswordField = screen.getByLabelText(/^Confirm New Password/i) as HTMLInputElement;
       
       fireEvent.change(fullNameField, { target: { value: 'Updated Name' } });
       fireEvent.change(emailField, { target: { value: 'updated@example.com' } });
@@ -232,9 +232,9 @@ describe('Profile Component', () => {
       renderWithTheme(<Profile />);
       
       // Fill in password fields
-      const currentPasswordField = screen.getByLabelText(/current password/i) as HTMLInputElement;
-      const newPasswordField = screen.getByLabelText(/new password/i) as HTMLInputElement;
-      const confirmPasswordField = screen.getByLabelText(/confirm password/i) as HTMLInputElement;
+      const currentPasswordField = screen.getByLabelText(/Current Password/i) as HTMLInputElement;
+      const newPasswordField = screen.getByLabelText(/^New Password/i) as HTMLInputElement;
+      const confirmPasswordField = screen.getByLabelText(/^Confirm New Password/i) as HTMLInputElement;
       
       fireEvent.change(currentPasswordField, { target: { value: 'currentpass' } });
       fireEvent.change(newPasswordField, { target: { value: 'newpassword123' } });
@@ -287,8 +287,8 @@ describe('Profile Component', () => {
       expect(screen.getByLabelText(/Full Name/i)).toBeInTheDocument();
       expect(screen.getByLabelText(/Email/i)).toBeInTheDocument();
       expect(screen.getByLabelText(/Current Password/i)).toBeInTheDocument();
-      expect(screen.getByLabelText(/new password/i)).toBeInTheDocument();
-      expect(screen.getByLabelText(/confirm password/i)).toBeInTheDocument();
+      expect(screen.getByLabelText(/^New Password/i)).toBeInTheDocument();
+      expect(screen.getByLabelText(/^Confirm New Password/i)).toBeInTheDocument();
       expect(screen.getByRole('button', { name: /Update Profile/i })).toBeInTheDocument();
     });
 
