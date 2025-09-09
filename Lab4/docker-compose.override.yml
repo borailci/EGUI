@@ -1,8 +1,6 @@
 # docker-compose.override.yml
 # This file is automatically used by docker-compose for development overrides
 
-version: '3.8'
-
 services:
   # Development overrides for API
   api:

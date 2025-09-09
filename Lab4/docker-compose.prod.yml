@@ -1,8 +1,6 @@
 # docker-compose.prod.yml
 # Production configuration for Trip Organizer
 
-version: '3.8'
-
 services:
   # PostgreSQL Database - Production
   database:
