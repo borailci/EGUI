@@ -203,7 +203,7 @@ jobs:
       if: needs.backend-ci.result == 'success'
       uses: docker/build-push-action@v5
       with:
-        context: ./Lab4
+        context: ./Lab4/TripOrganizer.API
         file: ./Lab4/TripOrganizer.API/Dockerfile
         tags: trip-organizer-api:latest
         push: false
